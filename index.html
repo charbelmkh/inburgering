@@ -235,7 +235,7 @@
             
             <div class="search-box">
                 <input type="text" class="search-input" id="searchInput" placeholder="Search in English or Dutch..." autofocus>
-                <p class="search-hint">Double-tap Dutch word to reveal answer | Double-click speak button for slow 🐢</p>
+                <p class="search-hint">Tap Dutch word to reveal | Double-click speak button for slow 🐢</p>
             </div>
         </div>
 
@@ -742,8 +742,6 @@
 
         let clickCounts = {}; // Track clicks per word+language
 
-        // Track double-tap for revealing Dutch words
-        let tapCounts = {};
 
         // Display words in the results
         function displayWords(words) {
@@ -765,8 +763,8 @@
                                 <div class="word-text">${pair.english}</div>
                             </div>
                             <div class="word">
-                                <div class="word-label">Dutch (tap twice to reveal)</div>
-                                <div class="word-text hidden-answer" data-index="${index}" onclick="revealWord(this, ${index})">${pair.dutch}</div>
+                                <div class="word-label">Dutch (tap to reveal)</div>
+                                <div class="word-text hidden-answer" data-index="${index}" onclick="revealWord(this)">${pair.dutch}</div>
                             </div>
                         </div>
                         <div class="buttons">
@@ -782,35 +780,11 @@
             });
 
             resultsDiv.innerHTML = html;
-            // Reset tap counts when words are re-displayed
-            tapCounts = {};
         }
 
-        // Reveal Dutch word on double-tap
-        function revealWord(element, index) {
-            const key = `reveal-${index}`;
-            
-            if (!tapCounts[key]) {
-                tapCounts[key] = { count: 0, timer: null };
-            }
-            
-            // Clear previous timer
-            if (tapCounts[key].timer) {
-                clearTimeout(tapCounts[key].timer);
-            }
-            
-            tapCounts[key].count++;
-            
-            // If double-tapped, reveal the word
-            if (tapCounts[key].count >= 2) {
-                element.classList.add('revealed');
-                tapCounts[key].count = 0;
-            } else {
-                // Reset counter after 500ms (window for double-tap)
-                tapCounts[key].timer = setTimeout(() => {
-                    tapCounts[key].count = 0;
-                }, 500);
-            }
+        // Reveal Dutch word on single tap
+        function revealWord(element) {
+            element.classList.add('revealed');
         }
 
         // Text-to-speech function
