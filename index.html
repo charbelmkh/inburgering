@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dutch-English Dictionary</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            padding-top: 10px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding-top: 10px;
+            padding-bottom: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 15px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .search-box {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            border-color: #667eea;
+        }
+
+        .search-hint {
+            color: #888;
+            font-size: 14px;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .results {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .word-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s;
+        }
+
+        .word-item:hover {
+            background: #f8f9ff;
+        }
+
+        .word-item:last-child {
+            border-bottom: none;
+        }
+
+        .words {
+            flex: 1;
+            display: flex;
+            gap: 20px;
+        }
+
+        .word {
+            flex: 1;
+        }
+
+        .word-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+
+        .word-text {
+            font-size: 18px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .word-text.hidden-answer {
+            background: #e0e0e0;
+            color: #e0e0e0;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.3s ease;
+            padding: 2px 8px;
+            display: inline-block;
+        }
+
+        .word-text.hidden-answer:hover {
+            background: #d0d0d0;
+            color: #d0d0d0;
+        }
+
+        .word-text.hidden-answer.revealed {
+            background: transparent;
+            color: #333;
+            padding: 2px 0;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .speak-btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .speak-btn.english {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .speak-btn.english:hover {
+            background: #43A047;
+            transform: translateY(-2px);
+        }
+
+        .speak-btn.dutch {
+            background: #FF9800;
+            color: white;
+        }
+
+        .speak-btn.dutch:hover {
+            background: #F57C00;
+            transform: translateY(-2px);
+        }
+
+        .speak-btn:active {
+            transform: translateY(0);
+        }
+
+        .speak-btn.slow {
+            animation: pulse 0.3s;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .no-results {
+            padding: 40px;
+            text-align: center;
+            color: #888;
+        }
+
+        .speed-indicator {
+            font-size: 10px;
+            opacity: 0.8;
+        }
+
+        .count {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9ff;
+            color: #666;
+            font-size: 14px;
+        }
+
+        @media (max-width: 600px) {
+            .word-item {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 15px;
+            }
+
+            .words {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .buttons {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🇳🇱 Dutch-English Dictionary</h1>
+            
+            <div class="search-box">
+                <input type="text" class="search-input" id="searchInput" placeholder="Search in English or Dutch..." autofocus>
+                <p class="search-hint">Double-tap Dutch word to reveal answer | Double-click speak button for slow 🐢</p>
+            </div>
+        </div>
+
+        <div class="results" id="results">
+            <div class="count" id="count"></div>
+        </div>
+    </div>
+
+    <script>
+        // Word data embedded directly (works on GitHub Pages)
+        const wordPairs = [
+            {english: "action", dutch: "actie"},
+            {english: "active", dutch: "actief"},
+            {english: "activity", dutch: "activiteit"},
+            {english: "address", dutch: "adres"},
+            {english: "advice", dutch: "advies"},
+            {english: "agent", dutch: "agent"},
+            {english: "already", dutch: "al"},
+            {english: "all", dutch: "alle"},
+            {english: "only", dutch: "alleen"},
+            {english: "other", dutch: "ander"},
+            {english: "answer", dutch: "antwoord"},
+            {english: "argument", dutch: "argument"},
+            {english: "arm", dutch: "arm"},
+            {english: "article", dutch: "artikel"},
+            {english: "aspect", dutch: "aspect"},
+            {english: "author", dutch: "auteur"},
+            {english: "automatically", dutch: "automatisch"},
+            {english: "boss", dutch: "baas"},
+            {english: "baby", dutch: "baby"},
+            {english: "bank", dutch: "bank"},
+            {english: "base", dutch: "basis"},
+            {english: "bed", dutch: "bed"},
+            {english: "get started", dutch: "begin"},
+            {english: "to begin", dutch: "beginnen"},
+            {english: "both", dutch: "beide"},
+            {english: "to influence", dutch: "benvloeden"},
+            {english: "discuss", dutch: "bespreken"},
+            {english: "better", dutch: "beter"},
+            {english: "busy", dutch: "bezig"},
+            {english: "beer", dutch: "bier"},
+            {english: "to bite", dutch: "bijten"},
+            {english: "bitter", dutch: "bitter"},
+            {english: "blue", dutch: "blauw"},
+            {english: "blood", dutch: "bloed"},
+            {english: "bottom", dutch: "bodem"},
+            {english: "book", dutch: "boek"},
+            {english: "boat", dutch: "boot"},
+            {english: "bring", dutch: "brengen"},
+            {english: "brother", dutch: "broer"},
+            {english: "bread", dutch: "brood"},
+            {english: "brown", dutch: "bruin"},
+            {english: "bus", dutch: "bus"},
+            {english: "cafe", dutch: "caf"},
+            {english: "category", dutch: "categorie"},
+            {english: "centre", dutch: "centrum"},
+            {english: "colleague", dutch: "collega"},
+            {english: "combination", dutch: "combinatie"},
+            {english: "communication", dutch: "communicatie"},
+            {english: "computer", dutch: "computer"},
+            {english: "conclusion", dutch: "conclusie"},
+            {english: "consequence", dutch: "consequentie"},
+            {english: "contact", dutch: "contact"},
+            {english: "crisis", dutch: "crisis"},
+            {english: "cultural", dutch: "cultureel"},
+            {english: "culture", dutch: "cultuur"},
+            {english: "there", dutch: "daar"},
+            {english: "day", dutch: "dag"},
+            {english: "then", dutch: "dan"},
+            {english: "to thank", dutch: "danken"},
+            {english: "to dance", dutch: "dansen"},
+            {english: "that", dutch: "dat"},
+            {english: "the", dutch: "de"},
+            {english: "to think", dutch: "denken"},
+            {english: "third", dutch: "derde"},
+            {english: "detail", dutch: "detail"},
+            {english: "door", dutch: "deur"},
+            {english: "this", dutch: "deze"},
+            {english: "deep", dutch: "diep"},
+            {english: "thing", dutch: "ding"},
+            {english: "directly", dutch: "direct"},
+            {english: "director", dutch: "directeur"},
+            {english: "discussion", dutch: "discussie"},
+            {english: "this", dutch: "dit"},
+            {english: "daughter", dutch: "dochter"},
+            {english: "to do", dutch: "doen"},
+            {english: "doctor", dutch: "dokter"},
+            {english: "dumb", dutch: "dom"},
+            {english: "death", dutch: "dood"},
+            {english: "dead", dutch: "dood"},
+            {english: "three", dutch: "drie"},
+            {english: "drink", dutch: "drinken"},
+            {english: "to dream", dutch: "dromen"},
+            {english: "dream", dutch: "droom"},
+            {english: "double", dutch: "dubbel"},
+            {english: "thin", dutch: "dun"},
+            {english: "economy", dutch: "economie"},
+            {english: "a", dutch: "een"},
+            {english: "first", dutch: "eerst"},
+            {english: "effect", dutch: "effect"},
+            {english: "island", dutch: "eiland"},
+            {english: "end", dutch: "eind"},
+            {english: "endless", dutch: "eindeloos"},
+            {english: "to end", dutch: "eindigen"},
+            {english: "each", dutch: "elk"},
+            {english: "emotion", dutch: "emotie"},
+            {english: "emotional", dutch: "emotioneel"},
+            {english: "and", dutch: "en"},
+            {english: "energy", dutch: "energie"},
+            {english: "english", dutch: "Engels"},
+            {english: "enormous", dutch: "enorm"},
+            {english: "there", dutch: "er"},
+            {english: "experiment", dutch: "experiment"},
+            {english: "factory", dutch: "fabriek"},
+            {english: "factor", dutch: "factor"},
+            {english: "family", dutch: "familie"},
+            {english: "phase", dutch: "fase"},
+            {english: "fact", dutch: "feit"},
+            {english: "figure", dutch: "figuur"},
+            {english: "movie", dutch: "film"},
+            {english: "financial", dutch: "financieel"},
+            {english: "to formulate", dutch: "formuleren"},
+            {english: "photo", dutch: "foto"},
+            {english: "fruit", dutch: "fruit"},
+            {english: "function", dutch: "functie"},
+            {english: "fundamentally", dutch: "fundamenteel"},
+            {english: "to go", dutch: "gaan"},
+            {english: "guest", dutch: "gast"},
+            {english: "born", dutch: "geboren"},
+            {english: "give", dutch: "geef"},
+            {english: "luck", dutch: "geluk"},
+            {english: "mean", dutch: "gemeen"},
+            {english: "generation", dutch: "generatie"},
+            {english: "to give", dutch: "geven"},
+            {english: "feeling", dutch: "gevoel"},
+            {english: "glass", dutch: "glas"},
+            {english: "good", dutch: "goed"},
+            {english: "goods", dutch: "goederen"},
+            {english: "golden", dutch: "gouden"},
+            {english: "grass", dutch: "gras"},
+            {english: "to grow", dutch: "groeien"},
+            {english: "green", dutch: "groen"},
+            {english: "group", dutch: "groep"},
+            {english: "her", dutch: "haar"},
+            {english: "half", dutch: "half"},
+            {english: "hand", dutch: "hand"},
+            {english: "hard", dutch: "hard"},
+            {english: "heart", dutch: "hart"},
+            {english: "to have", dutch: "hebben"},
+            {english: "hot", dutch: "heet"},
+            {english: "half", dutch: "helft"},
+            {english: "to help", dutch: "helpen"},
+            {english: "him", dutch: "hem"},
+            {english: "it", dutch: "het"},
+            {english: "here", dutch: "hier"},
+            {english: "he", dutch: "hij"},
+            {english: "historical", dutch: "historisch"},
+            {english: "how", dutch: "hoe"},
+            {english: "hat", dutch: "hoed"},
+            {english: "Holland", dutch: "Holland"},
+            {english: "hungry", dutch: "honger"},
+            {english: "hope", dutch: "hoop"},
+            {english: "to hope", dutch: "hopen"},
+            {english: "to hear", dutch: "horen"},
+            {english: "hotel", dutch: "hotel"},
+            {english: "to keep", dutch: "houden"},
+            {english: "house", dutch: "huis"},
+            {english: "help", dutch: "hulp"},
+            {english: "hut", dutch: "hut"},
+            {english: "ideal", dutch: "ideaal"},
+            {english: "idea", dutch: "idee"},
+            {english: "I", dutch: "ik"},
+            {english: "in", dutch: "in"},
+            {english: "individual", dutch: "individu"},
+            {english: "individually", dutch: "individueel"},
+            {english: "information", dutch: "informatie"},
+            {english: "initiative", dutch: "initiatief"},
+            {english: "instrument", dutch: "instrument"},
+            {english: "interesting", dutch: "interessant"},
+            {english: "to be interested", dutch: "interesseren"},
+            {english: "international", dutch: "internationaal"},
+            {english: "influence", dutch: "invloed"},
+            {english: "yes", dutch: "ja"},
+            {english: "year", dutch: "jaar"},
+            {english: "you", dutch: "je"},
+            {english: "yourself", dutch: "jezelf"},
+            {english: "you", dutch: "jij"},
+            {english: "young", dutch: "jong"},
+            {english: "young man", dutch: "jongeman"},
+            {english: "you", dutch: "jou"},
+            {english: "you", dutch: "jullie"},
+            {english: "june", dutch: "juni"},
+            {english: "cheese", dutch: "kaas"},
+            {english: "calm", dutch: "kalm"},
+            {english: "camp", dutch: "kamp"},
+            {english: "character", dutch: "karakter"},
+            {english: "cat", dutch: "kat"},
+            {english: "kilometers", dutch: "kilometer"},
+            {english: "client", dutch: "klant"},
+            {english: "class", dutch: "klas"},
+            {english: "classic", dutch: "klassiek"},
+            {english: "color", dutch: "kleur"},
+            {english: "to climb", dutch: "klimmen"},
+            {english: "knee", dutch: "knie"},
+            {english: "cool", dutch: "koel"},
+            {english: "coffee", dutch: "koffie"},
+            {english: "come", dutch: "komen"},
+            {english: "king", dutch: "koning"},
+            {english: "to cost", dutch: "kosten"},
+            {english: "cold", dutch: "koud"},
+            {english: "cross", dutch: "kruis"},
+            {english: "can/to be able to", dutch: "kunnen"},
+            {english: "coast", dutch: "kust"},
+            {english: "quality", dutch: "kwaliteit"},
+            {english: "late", dutch: "laat"},
+            {english: "last", dutch: "laatste"},
+            {english: "laugh", dutch: "lachen"},
+            {english: "landscape", dutch: "landschap"},
+            {english: "long", dutch: "lang"},
+            {english: "along", dutch: "langs"},
+            {english: "to let", dutch: "laten"},
+            {english: "later", dutch: "later"},
+            {english: "to lead", dutch: "leiden"},
+            {english: "leader", dutch: "leider"},
+            {english: "leadership", dutch: "leiding"},
+            {english: "to learn", dutch: "leren"},
+            {english: "life", dutch: "leven"},
+            {english: "to deliver", dutch: "leveren"},
+            {english: "light", dutch: "licht"},
+            {english: "love", dutch: "liefde"},
+            {english: "list", dutch: "lijst"},
+            {english: "lip", dutch: "lip"},
+            {english: "literature", dutch: "literatuur"},
+            {english: "logical", dutch: "logisch"},
+            {english: "loose", dutch: "los"},
+            {english: "listen", dutch: "luisteren"},
+            {english: "lieutenant", dutch: "luitenant"},
+            {english: "meal", dutch: "maaltijd"},
+            {english: "moon", dutch: "maan"},
+            {english: "month", dutch: "maand"},
+            {english: "machine", dutch: "machine"},
+            {english: "to make", dutch: "maken"},
+            {english: "mom", dutch: "mama"},
+            {english: "man", dutch: "man"},
+            {english: "market", dutch: "markt"},
+            {english: "material", dutch: "materiaal"},
+            {english: "me", dutch: "me"},
+            {english: "medical", dutch: "medisch"},
+            {english: "more", dutch: "meer"},
+            {english: "mostly", dutch: "meestal"},
+            {english: "master", dutch: "meester"},
+            {english: "mean", dutch: "menen"},
+            {english: "meter", dutch: "meter"},
+            {english: "method", dutch: "methode"},
+            {english: "myself", dutch: "mezelf"},
+            {english: "me", dutch: "mij"},
+            {english: "my", dutch: "mijn"},
+            {english: "million", dutch: "miljoen"},
+            {english: "minister", dutch: "minister"},
+            {english: "minute", dutch: "minuut"},
+            {english: "to miss", dutch: "missen"},
+            {english: "modern", dutch: "modern"},
+            {english: "mother", dutch: "moeder"},
+            {english: "should", dutch: "moeten"},
+            {english: "moment", dutch: "moment"},
+            {english: "mouth", dutch: "mond"},
+            {english: "motive", dutch: "motief"},
+            {english: "museum", dutch: "museum"},
+            {english: "music", dutch: "muziek"},
+            {english: "name", dutch: "naam"},
+            {english: "night", dutch: "nacht"},
+            {english: "national", dutch: "nationaal"},
+            {english: "nature", dutch: "natuur"},
+            {english: "no", dutch: "nee"},
+            {english: "negative", dutch: "negatief"},
+            {english: "neck", dutch: "nek"},
+            {english: "nose", dutch: "neus"},
+            {english: "not", dutch: "niet"},
+            {english: "new", dutch: "nieuw"},
+            {english: "north", dutch: "noorden"},
+            {english: "normal", dutch: "normaal"},
+            {english: "now", dutch: "nu"},
+            {english: "number", dutch: "nummer"},
+            {english: "object", dutch: "object"},
+            {english: "or", dutch: "of"},
+            {english: "officially", dutch: "officieel"},
+            {english: "officer", dutch: "officier"},
+            {english: "October", dutch: "oktober"},
+            {english: "oil", dutch: "olie"},
+            {english: "lack", dutch: "ontbreken"},
+            {english: "ear", dutch: "oor"},
+            {english: "on", dutch: "op"},
+            {english: "open", dutch: "open"},
+            {english: "to open", dutch: "openen"},
+            {english: "operation", dutch: "operatie"},
+            {english: "organ", dutch: "orgaan"},
+            {english: "organization", dutch: "organisatie"},
+            {english: "to organize", dutch: "organiseren"},
+            {english: "old", dutch: "oud"},
+            {english: "path", dutch: "pad"},
+            {english: "paper", dutch: "papier"},
+            {english: "partner", dutch: "partner"},
+            {english: "pass", dutch: "passeren"},
+            {english: "patient", dutch: "patiënt"},
+            {english: "pattern", dutch: "patroon"},
+            {english: "period", dutch: "periode"},
+            {english: "press", dutch: "pers"},
+            {english: "person", dutch: "persoon"},
+            {english: "personally", dutch: "persoonlijk"},
+            {english: "personality", dutch: "persoonlijkheid"},
+            {english: "pain", dutch: "pijn"},
+            {english: "painful", dutch: "pijnlijk"},
+            {english: "plate", dutch: "plaat"},
+            {english: "place", dutch: "plaats"},
+            {english: "place", dutch: "plaatsen"},
+            {english: "plan", dutch: "plan"},
+            {english: "plant", dutch: "plant"},
+            {english: "pleasure", dutch: "plezier"},
+            {english: "law enforcement", dutch: "politie"},
+            {english: "position", dutch: "positie"},
+            {english: "positive", dutch: "positief"},
+            {english: "pot", dutch: "pot"},
+            {english: "practice", dutch: "praktijk"},
+            {english: "practical", dutch: "praktisch"},
+            {english: "president", dutch: "president"},
+            {english: "price", dutch: "prijs"},
+            {english: "problem", dutch: "probleem"},
+            {english: "per cent", dutch: "procent"},
+            {english: "process", dutch: "proces"},
+            {english: "to produce", dutch: "produceren"},
+            {english: "product", dutch: "product"},
+            {english: "production", dutch: "productie"},
+            {english: "program", dutch: "programma"},
+            {english: "project", dutch: "project"},
+            {english: "province", dutch: "provincie"},
+            {english: "psychology", dutch: "psychologie"},
+            {english: "psychological", dutch: "psychologisch"},
+            {english: "psychologist", dutch: "psycholoog"},
+            {english: "to publish", dutch: "publiceren"},
+            {english: "radio", dutch: "radio"},
+            {english: "reaction", dutch: "reactie"},
+            {english: "realize", dutch: "realiseren"},
+            {english: "reason", dutch: "reden"},
+            {english: "relationship", dutch: "relatie"},
+            {english: "relatively", dutch: "relatief"},
+            {english: "To run", dutch: "rennen"},
+            {english: "rest", dutch: "rest"},
+            {english: "restaurant", dutch: "restaurant"},
+            {english: "result", dutch: "resultaat"},
+            {english: "rich", dutch: "rijk"},
+            {english: "risk", dutch: "risico"},
+            {english: "river", dutch: "rivier"},
+            {english: "role", dutch: "rol"},
+            {english: "round", dutch: "rond"},
+            {english: "red", dutch: "rood"},
+            {english: "to rest", dutch: "rusten"},
+            {english: "shadow", dutch: "schaduw"},
+            {english: "shoe", dutch: "schoen"},
+            {english: "school", dutch: "school"},
+            {english: "shoulder", dutch: "schouder"},
+            {english: "second", dutch: "seconde"},
+            {english: "sector", dutch: "sector"},
+            {english: "serious", dutch: "serieus"},
+            {english: "cigarette", dutch: "sigaret"},
+            {english: "since", dutch: "sinds"},
+            {english: "sleep", dutch: "slaap"},
+            {english: "to sleep", dutch: "slapen"},
+            {english: "snow", dutch: "sneeuw"},
+            {english: "social", dutch: "sociaal"},
+            {english: "some", dutch: "sommige"},
+            {english: "sometimes", dutch: "soms"},
+            {english: "kind", dutch: "soort"},
+            {english: "special", dutch: "speciaal"},
+            {english: "specific", dutch: "specifiek"},
+            {english: "to speak", dutch: "spreken"},
+            {english: "stand", dutch: "staan"},
+            {english: "to stand", dutch: "staan"},
+            {english: "state", dutch: "staat"},
+            {english: "step", dutch: "stap"},
+            {english: "to step", dutch: "stappen"},
+            {english: "station", dutch: "station"},
+            {english: "stone", dutch: "steen"},
+            {english: "star", dutch: "ster"},
+            {english: "stiff", dutch: "stijf"},
+            {english: "style", dutch: "stijl"},
+            {english: "stop", dutch: "stoppen"},
+            {english: "street", dutch: "straat"},
+            {english: "structure", dutch: "structuur"},
+            {english: "student", dutch: "student"},
+            {english: "to study", dutch: "studeren"},
+            {english: "study", dutch: "studie"},
+            {english: "good luck", dutch: "succes"},
+            {english: "sugar", dutch: "suiker"},
+            {english: "symbol", dutch: "symbool"},
+            {english: "system", dutch: "systeem"},
+            {english: "table", dutch: "tafel"},
+            {english: "aunt", dutch: "tante"},
+            {english: "too", dutch: "te"},
+            {english: "technic", dutch: "techniek"},
+            {english: "technical", dutch: "technisch"},
+            {english: "text", dutch: "tekst"},
+            {english: "phone", dutch: "telefoon"},
+            {english: "television", dutch: "televisie"},
+            {english: "term", dutch: "term"},
+            {english: "terrace", dutch: "terras"},
+            {english: "terrain", dutch: "terrein"},
+            {english: "tea", dutch: "thee"},
+            {english: "theoretically", dutch: "theoretisch"},
+            {english: "theory", dutch: "theorie"},
+            {english: "ten", dutch: "tien"},
+            {english: "title", dutch: "titel"},
+            {english: "then (past)", dutch: "toen"},
+            {english: "tongue", dutch: "tong"},
+            {english: "top", dutch: "top"},
+            {english: "total", dutch: "totaal"},
+            {english: "tradition", dutch: "traditie"},
+            {english: "traditional", dutch: "traditioneel"},
+            {english: "train", dutch: "trein"},
+            {english: "two", dutch: "twee"},
+            {english: "typical", dutch: "typisch"},
+            {english: "you", dutch: "u"},
+            {english: "university", dutch: "universiteit"},
+            {english: "hour", dutch: "uur"},
+            {english: "father", dutch: "vader"},
+            {english: "fall", dutch: "vallen"},
+            {english: "to fight", dutch: "vechten"},
+            {english: "field", dutch: "veld"},
+            {english: "far", dutch: "ver"},
+            {english: "to forbid", dutch: "verbieden"},
+            {english: "further", dutch: "verder"},
+            {english: "to spread", dutch: "verspreiden"},
+            {english: "to tell", dutch: "vertellen"},
+            {english: "fulfill", dutch: "vervullen"},
+            {english: "four", dutch: "vier"},
+            {english: "five", dutch: "vijf"},
+            {english: "find", dutch: "vinden"},
+            {english: "finger", dutch: "vinger"},
+            {english: "fish", dutch: "vis"},
+            {english: "vision", dutch: "visie"},
+            {english: "fly", dutch: "vliegen"},
+            {english: "floor", dutch: "vloer"},
+            {english: "to flee", dutch: "vluchten"},
+            {english: "to feel", dutch: "voelen"},
+            {english: "foot", dutch: "voet"},
+            {english: "full", dutch: "vol"},
+            {english: "before", dutch: "voor"},
+            {english: "formation", dutch: "vorming"},
+            {english: "friend", dutch: "vriend"},
+            {english: "friendly", dutch: "vriendelijk"},
+            {english: "free", dutch: "vrij"},
+            {english: "to fill", dutch: "vullen"},
+            {english: "fire", dutch: "vuur"},
+            {english: "to wait", dutch: "wachten"},
+            {english: "awake", dutch: "wakker"},
+            {english: "when", dutch: "wanneer"},
+            {english: "weapon", dutch: "wapen"},
+            {english: "warm", dutch: "warm"},
+            {english: "warmth", dutch: "warmte"},
+            {english: "To wash", dutch: "wassen"},
+            {english: "what", dutch: "wat"},
+            {english: "water", dutch: "water"},
+            {english: "we", dutch: "we"},
+            {english: "week", dutch: "week"},
+            {english: "which", dutch: "welk"},
+            {english: "wish", dutch: "wens"},
+            {english: "to wish", dutch: "wensen"},
+            {english: "world", dutch: "wereld"},
+            {english: "work", dutch: "werk"},
+            {english: "to work", dutch: "werken"},
+            {english: "west", dutch: "westen"},
+            {english: "western", dutch: "westers"},
+            {english: "we", dutch: "wij"},
+            {english: "wide", dutch: "wijd"},
+            {english: "wine", dutch: "wijn"},
+            {english: "wild", dutch: "wild"},
+            {english: "wind", dutch: "wind"},
+            {english: "to win", dutch: "winnen"},
+            {english: "winter", dutch: "winter"},
+            {english: "white", dutch: "wit"},
+            {english: "word", dutch: "woord"},
+            {english: "sand", dutch: "zand"},
+            {english: "sea", dutch: "zee"},
+            {english: "self", dutch: "zelf"},
+            {english: "to send", dutch: "zenden"},
+            {english: "six", dutch: "zes"},
+            {english: "sick", dutch: "ziek"},
+            {english: "she", dutch: "zij"},
+            {english: "to sing", dutch: "zingen"},
+            {english: "to sit", dutch: "zitten"},
+            {english: "so", dutch: "zo"},
+            {english: "so that", dutch: "zodat"},
+            {english: "summer", dutch: "zomer"},
+            {english: "sunday", dutch: "zondag"},
+            {english: "son", dutch: "zoon"},
+            {english: "shall", dutch: "zullen"},
+            {english: "sister", dutch: "zuster"}
+        ];
+
+        let clickCounts = {}; // Track clicks per word+language
+
+        // Track double-tap for revealing Dutch words
+        let tapCounts = {};
+
+        // Display words in the results
+        function displayWords(words) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (words.length === 0) {
+                resultsDiv.innerHTML = '<div class="no-results">No words found</div>';
+                return;
+            }
+
+            let html = `<div class="count">Showing ${words.length} word${words.length !== 1 ? 's' : ''}</div>`;
+            
+            words.forEach((pair, index) => {
+                html += `
+                    <div class="word-item">
+                        <div class="words">
+                            <div class="word">
+                                <div class="word-label">English</div>
+                                <div class="word-text">${pair.english}</div>
+                            </div>
+                            <div class="word">
+                                <div class="word-label">Dutch (tap twice to reveal)</div>
+                                <div class="word-text hidden-answer" data-index="${index}" onclick="revealWord(this, ${index})">${pair.dutch}</div>
+                            </div>
+                        </div>
+                        <div class="buttons">
+                            <button class="speak-btn english" onclick="speak('${pair.english.replace(/'/g, "\\'")}', 'en-US', this, ${index})">
+                                🔊 English
+                            </button>
+                            <button class="speak-btn dutch" onclick="speak('${pair.dutch.replace(/'/g, "\\'")}', 'nl-NL', this, ${index})">
+                                🔊 Dutch
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            resultsDiv.innerHTML = html;
+            // Reset tap counts when words are re-displayed
+            tapCounts = {};
+        }
+
+        // Reveal Dutch word on double-tap
+        function revealWord(element, index) {
+            const key = `reveal-${index}`;
+            
+            if (!tapCounts[key]) {
+                tapCounts[key] = { count: 0, timer: null };
+            }
+            
+            // Clear previous timer
+            if (tapCounts[key].timer) {
+                clearTimeout(tapCounts[key].timer);
+            }
+            
+            tapCounts[key].count++;
+            
+            // If double-tapped, reveal the word
+            if (tapCounts[key].count >= 2) {
+                element.classList.add('revealed');
+                tapCounts[key].count = 0;
+            } else {
+                // Reset counter after 500ms (window for double-tap)
+                tapCounts[key].timer = setTimeout(() => {
+                    tapCounts[key].count = 0;
+                }, 500);
+            }
+        }
+
+        // Text-to-speech function
+        function speak(text, lang, button, index) {
+            const key = `${index}-${lang}`;
+            
+            // Track clicks - reset after 2 seconds of no clicks
+            if (!clickCounts[key]) {
+                clickCounts[key] = { count: 0, timer: null };
+            }
+            
+            // Clear previous timer
+            if (clickCounts[key].timer) {
+                clearTimeout(clickCounts[key].timer);
+            }
+            
+            clickCounts[key].count++;
+            const isSlow = clickCounts[key].count >= 2;
+            
+            // Reset counter after 2 seconds
+            clickCounts[key].timer = setTimeout(() => {
+                clickCounts[key].count = 0;
+            }, 2000);
+
+            // Cancel any ongoing speech
+            window.speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang;
+            
+            if (isSlow) {
+                utterance.rate = 0.5; // Slow speed
+                button.classList.add('slow');
+                setTimeout(() => button.classList.remove('slow'), 300);
+            } else {
+                utterance.rate = 1; // Normal speed
+            }
+
+            utterance.pitch = 1;
+            utterance.volume = 1;
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            
+            if (query === '') {
+                displayWords(wordPairs);
+                return;
+            }
+
+            const filtered = wordPairs.filter(pair => 
+                pair.english.toLowerCase().includes(query) || 
+                pair.dutch.toLowerCase().includes(query)
+            );
+
+            displayWords(filtered);
+        });
+
+        // Display words on page load
+        displayWords(wordPairs);
+    </script>
+</body>
+</html>
