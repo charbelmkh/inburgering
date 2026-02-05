@@ -93,6 +93,11 @@
             border-bottom: none;
         }
 
+        .word-item.playing {
+            background: #e8f0fe;
+            box-shadow: inset 0 0 0 2px #667eea;
+        }
+
         .words {
             flex: 1;
             display: flex;
@@ -235,7 +240,7 @@
             
             <div class="search-box">
                 <input type="text" class="search-input" id="searchInput" placeholder="Search in English or Dutch..." autofocus>
-                <p class="search-hint">Tap Dutch word to reveal | Double-click speak button for slow 🐢</p>
+                <p class="search-hint">Auto-play: English → Dutch → spelling. Click a row to continue from that word. Tap Dutch to reveal | Double-click speak for slow 🐢</p>
             </div>
         </div>
 
@@ -742,6 +747,9 @@
 
         let clickCounts = {}; // Track clicks per word+language
 
+        // Auto-play state: list currently shown and sequence id to ignore stale onend
+        let displayedWords = [];
+        let autoPlaySequenceId = null;
 
         // Display words in the results
         function displayWords(words) {
@@ -749,14 +757,17 @@
             
             if (words.length === 0) {
                 resultsDiv.innerHTML = '<div class="no-results">No words found</div>';
+                displayedWords = [];
                 return;
             }
+
+            displayedWords = words;
 
             let html = `<div class="count">Showing ${words.length} word${words.length !== 1 ? 's' : ''}</div>`;
             
             words.forEach((pair, index) => {
                 html += `
-                    <div class="word-item">
+                    <div class="word-item" data-play-index="${index}" onclick="handleRowClick(event, ${index})">
                         <div class="words">
                             <div class="word">
                                 <div class="word-label">English</div>
@@ -780,6 +791,98 @@
             });
 
             resultsDiv.innerHTML = html;
+        }
+
+        // Click on row: if not on button or Dutch reveal cell, start auto-play from this word
+        function handleRowClick(event, index) {
+            if (event.target.closest('.speak-btn') || event.target.closest('.hidden-answer')) return;
+            event.stopPropagation();
+            startAutoPlayFrom(index);
+        }
+
+        // Start (or jump) auto-play from given index
+        function startAutoPlayFrom(index) {
+            window.speechSynthesis.cancel();
+            autoPlaySequenceId = null;
+            if (index >= 0 && index < displayedWords.length) {
+                playWordAtIndex(index);
+            }
+        }
+
+        // Spell word letter by letter (Dutch), then call onComplete
+        function spellWord(word, lang, sequenceId, onComplete) {
+            const chars = word.split('');
+            if (chars.length === 0) {
+                setTimeout(onComplete, 100);
+                return;
+            }
+            let i = 0;
+            function speakNext() {
+                if (sequenceId !== autoPlaySequenceId) return;
+                if (i >= chars.length) {
+                    setTimeout(onComplete, 150);
+                    return;
+                }
+                const char = chars[i];
+                if (char === ' ') {
+                    i++;
+                    setTimeout(speakNext, 100);
+                    return;
+                }
+                const u = new SpeechSynthesisUtterance(char);
+                u.lang = lang;
+                u.rate = 0.85;
+                u.volume = 1;
+                u.onend = function() {
+                    if (sequenceId !== autoPlaySequenceId) return;
+                    i++;
+                    setTimeout(speakNext, 100);
+                };
+                window.speechSynthesis.speak(u);
+            }
+            setTimeout(speakNext, 350);
+        }
+
+        // Play one word: English -> Dutch -> spell Dutch -> then next word
+        function playWordAtIndex(index) {
+            if (index >= displayedWords.length) {
+                document.querySelectorAll('.word-item.playing').forEach(el => el.classList.remove('playing'));
+                return;
+            }
+            autoPlaySequenceId = Date.now();
+            const id = autoPlaySequenceId;
+            const pair = displayedWords[index];
+
+            // Highlight current row
+            document.querySelectorAll('.word-item.playing').forEach(el => el.classList.remove('playing'));
+            const row = document.querySelector(`.word-item[data-play-index="${index}"]`);
+            if (row) row.classList.add('playing');
+
+            const goNext = () => {
+                if (id !== autoPlaySequenceId) return;
+                setTimeout(() => playWordAtIndex(index + 1), 600);
+            };
+
+            const u1 = new SpeechSynthesisUtterance(pair.english);
+            u1.lang = 'en-US';
+            u1.rate = 1;
+            u1.volume = 1;
+            u1.onend = function() {
+                if (id !== autoPlaySequenceId) return;
+                setTimeout(() => {
+                    if (id !== autoPlaySequenceId) return;
+                    const u2 = new SpeechSynthesisUtterance(pair.dutch);
+                    u2.lang = 'nl-NL';
+                    u2.rate = 1;
+                    u2.volume = 1;
+                    u2.onend = function() {
+                        if (id !== autoPlaySequenceId) return;
+                        spellWord(pair.dutch, 'nl-NL', id, goNext);
+                    };
+                    window.speechSynthesis.speak(u2);
+                }, 400);
+            };
+            window.speechSynthesis.speak(u1);
         }
 
         // Reveal Dutch word on single tap
@@ -846,8 +949,9 @@
             displayWords(filtered);
         });
 
-        // Display words on page load
+        // Display words on page load and start auto-play (English -> Dutch -> spell Dutch, then next word)
         displayWords(wordPairs);
+        startAutoPlayFrom(0);
     </script>
 </body>
 </html>
